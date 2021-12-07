@@ -30,7 +30,7 @@ import (
 	"github.com/sclevine/spec"
 )
 
-func testJavaAgent(t *testing.T, context spec.G, it spec.S) {
+func testTraceAgent(t *testing.T, context spec.G, it spec.S) {
 	var (
 		Expect = NewWithT(t).Expect
 		ctx    libcnb.BuildContext
@@ -59,7 +59,7 @@ func testJavaAgent(t *testing.T, context spec.G, it spec.S) {
 
 	it("contributes Java agent as a part of the build pack", func() {
 
-		j := trace.NewJavaAgent(ctx.Buildpack.Path, dep, dc, &libcnb.BuildpackPlan{}, ctx)
+		j := trace.NewTraceAgent(ctx.Buildpack.Path, dep, dc, &libcnb.BuildpackPlan{}, ctx)
 		layer, err := ctx.Layers.Layer("test-layer")
 		Expect(err).NotTo(HaveOccurred())
 
@@ -85,7 +85,7 @@ func testJavaAgent(t *testing.T, context spec.G, it spec.S) {
 			binding,
 		}
 
-		j := trace.NewJavaAgent(ctx.Buildpack.Path, dep, dc, &libcnb.BuildpackPlan{}, ctx)
+		j := trace.NewTraceAgent(ctx.Buildpack.Path, dep, dc, &libcnb.BuildpackPlan{}, ctx)
 		layer, err := ctx.Layers.Layer("test-layer")
 
 		layer, err = j.Contribute(layer)

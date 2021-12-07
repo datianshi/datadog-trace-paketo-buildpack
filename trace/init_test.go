@@ -27,6 +27,6 @@ func TestUnit(t *testing.T) {
 	suite := spec.New("trace", spec.Report(report.Terminal{}))
 	suite("Build", testBuild)
 	suite("Detect", testDetect)
-	suite("JavaAgent", testJavaAgent)
+	suite("TraceAgent", testTraceAgent)
 	suite.Run(t)
 }

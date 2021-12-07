@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"os/exec"
+
 	"github.com/buildpacks/libcnb"
 	"github.com/paketo-buildpacks/libpak"
 	"github.com/paketo-buildpacks/libpak/bard"
@@ -29,7 +31,7 @@ import (
 	"github.com/paketo-buildpacks/libpak/sherpa"
 )
 
-type JavaAgent struct {
+type TraceAgent struct {
 	BuildpackPath    string
 	Context          libcnb.BuildContext
 	LayerContributor libpak.DependencyLayerContributor
@@ -39,50 +41,58 @@ type JavaAgent struct {
 const (
 	yamlExt        = ".yaml"
 	propertiesExt  = ".properties"
-	javaToolEnv    = "JAVA_TOOL_OPTIONS"
 	jmxConfigEnv   = "DD_JMXFETCH_CONFIG"
 	agentConfigEnv = "DD_TRACE_CONFIG"
 )
 
-func NewJavaAgent(buildpackPath string, dependency libpak.BuildpackDependency, cache libpak.DependencyCache,
-	plan *libcnb.BuildpackPlan, context libcnb.BuildContext) JavaAgent {
+func NewTraceAgent(buildpackPath string, dependency libpak.BuildpackDependency, cache libpak.DependencyCache,
+	plan *libcnb.BuildpackPlan, context libcnb.BuildContext) TraceAgent {
 
-	return JavaAgent{
+	return TraceAgent{
 		Context:          context,
 		BuildpackPath:    buildpackPath,
 		LayerContributor: libpak.NewDependencyLayerContributor(dependency, cache, plan),
 	}
 }
 
-func (j JavaAgent) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
+func (j TraceAgent) Contribute(layer libcnb.Layer) (libcnb.Layer, error) {
 	j.LayerContributor.Logger = j.Logger
 
 	return j.LayerContributor.Contribute(layer, func(artifact *os.File) (libcnb.Layer, error) {
 		j.Logger.Bodyf("Copying to agent to %s", layer.Path)
 
 		//get the java agent and copy it into the image
-		file := filepath.Join(layer.Path, filepath.Base(artifact.Name()))
-		if err := sherpa.CopyFile(artifact, file); err != nil {
-			return libcnb.Layer{}, fmt.Errorf("unable to copy %s to %s\n%w", artifact.Name(), file, err)
+		// file := filepath.Join(layer.Path, "datadog-agent.deb")
+		// if err := sherpa.CopyFile(artifact, file); err != nil {
+		// 	return libcnb.Layer{}, fmt.Errorf("unable to copy %s to %s\n%w", artifact.Name(), file, err)
+		// }
+		// var fPath string
+		var err error
+		// if fPath, err = filepath.Abs(filepath.Dir(artifact.Name())); err != nil {
+		// 	return libcnb.Layer{}, err
+		// }
+
+		c := exec.Command("dpkg", "-x", artifact.Name(), fmt.Sprintf("%s/%s", layer.Path, "datadog-agent"))
+		c.Stdout = os.Stdout
+		if err = c.Run(); err != nil {
+			return libcnb.Layer{}, err
 		}
 
 		binding, ok, _ := bindings.ResolveOne(j.Context.Platform.Bindings, bindings.OfType("DatadogTrace"))
 
 		//handle the bindings of `DatadogTrace` which agent configurations
 		if ok {
-			err := handleAgentProperties(binding, layer, j.Logger)
+			err = handleAgentProperties(binding, layer, j.Logger)
 			if err != nil {
-				return libcnb.Layer{}, fmt.Errorf("Unable to process datadog trace agent configuration from binding\n%w", err)
+				return libcnb.Layer{}, fmt.Errorf("unable to process datadog trace agent configuration from binding\n%w", err)
 			}
 		}
-
-		layer.LaunchEnvironment.Appendf(javaToolEnv, " ", "-javaagent:"+file)
 
 		return layer, nil
 	}, libpak.LaunchLayer)
 }
 
-func (j JavaAgent) Name() string {
+func (j TraceAgent) Name() string {
 	return j.LayerContributor.LayerName()
 }
 
@@ -101,12 +111,12 @@ func handleAgentProperties(binding libcnb.Binding, layer libcnb.Layer, logger ba
 		if strings.HasSuffix(path, propertiesExt) {
 			logger.Info("Java agent configuration file %s detected", path)
 			if propertiesFileFound {
-				return fmt.Errorf("Unable to resolve binding configuration: More than 1 .properties supplied")
+				return fmt.Errorf("unable to resolve binding configuration: More than 1 .properties supplied")
 			}
 
 			err := copyFile(path, toPath)
 			if err != nil {
-				return fmt.Errorf("Unable to resolve binding configuration\n%w", err)
+				return fmt.Errorf("unable to resolve binding configuration\n%w", err)
 			}
 			layer.LaunchEnvironment.Appendf(agentConfigEnv, " ", toPath)
 			propertiesFileFound = true
@@ -114,12 +124,12 @@ func handleAgentProperties(binding libcnb.Binding, layer libcnb.Layer, logger ba
 		} else if strings.HasSuffix(path, yamlExt) {
 			logger.Info("JMX configuration file %s detected", path)
 			if jmxFileFound {
-				return fmt.Errorf("Unable to resolve binding configuration: More than 1 .yaml supplied")
+				return fmt.Errorf("unable to resolve binding configuration: More than 1 .yaml supplied")
 			}
 
 			err := copyFile(path, toPath)
 			if err != nil {
-				return fmt.Errorf("Unable to resolve binding configuration\n%w", err)
+				return fmt.Errorf("unable to resolve binding configuration\n%w", err)
 			}
 			layer.LaunchEnvironment.Appendf(jmxConfigEnv, " ", toPath)
 			jmxFileFound = true

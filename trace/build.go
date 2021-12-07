@@ -46,19 +46,27 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 	dc.Logger = b.Logger
 
 	// the resolve id needs to be the same as the [metadata.dependancies] id in buildpack.toml
-	if _, ok, err := pr.Resolve("datadog-trace-java"); err != nil {
-		return libcnb.BuildResult{}, fmt.Errorf("unable to resolve datadog-trace-java plan entry\n%w", err)
+	if _, ok, err := pr.Resolve("datadog-trace"); err != nil {
+		return libcnb.BuildResult{}, fmt.Errorf("unable to resolve datadog-trace plan entry\n%w", err)
 	} else if ok {
-		dep, err := dr.Resolve("datadog-trace-java", "")
+		dep, err := dr.Resolve("datadog-trace", "")
 		if err != nil {
 			return libcnb.BuildResult{}, fmt.Errorf("unable to find dependency\n%w", err)
 		}
 
-		b.Logger.Info("creating new Datadog java agent")
-		ja := NewJavaAgent(context.Buildpack.Path, dep, dc, result.Plan, context)
+		b.Logger.Info("creating new Datadog agent")
+		ja := NewTraceAgent(context.Buildpack.Path, dep, dc, result.Plan, context)
 
 		ja.Logger = b.Logger
 		result.Layers = append(result.Layers, ja)
+		result.Processes = append(result.Processes,
+			libcnb.Process{
+				Type:      "datadog",
+				Command:   "/layers/paketo-buildpacks_datadog-trace/datadog-trace/datadog-agent/opt/datadog-agent/embedded/bin/trace-agent",
+				Arguments: []string{"--config", "/layers/paketo-buildpacks_datadog-trace/datadog-trace/datadog.yaml", "--pid", "/workspace/run/trace-agent.pid"},
+				Direct:    true,
+			},
+		)
 	}
 
 	return result, nil

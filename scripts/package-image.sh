@@ -25,11 +25,11 @@ case $(uname -s) in
     *) exit "this script only works on mac and linux"
 esac
 
-rm -rf build &> /dev/null
-mkdir build
+# rm -rf build &> /dev/null
+# mkdir build
 
-wget -O "./build/${packageBinName}" "https://github.com/paketo-buildpacks/packit/releases/latest/download/${packageBinName}"
-chmod a+x "./build/${packageBinName}"
+# wget -O "./build/${packageBinName}" "https://github.com/paketo-buildpacks/jam/releases/latest/download/${packageBinName}"
+# chmod a+x "./build/${packageBinName}"
 
 ./build/jam-darwin pack --buildpack ./buildpack.toml --version ${version} --output "./build/${packageName}"
 
@@ -38,4 +38,4 @@ uri = './${packageName}'
 
 [platform]
 os = 'linux'" > ./build/package.toml
-pack package-buildpack "datadog/datadog-trace:${version}" --config ./build/package.toml --format image
+pack buildpack package "datianshi/datadog-trace:${version}" --config ./build/package.toml --format image

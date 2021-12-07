@@ -37,11 +37,10 @@ func (d Detect) Detect(context libcnb.DetectContext) (libcnb.DetectResult, error
 		Plans: []libcnb.BuildPlan{
 			{
 				Provides: []libcnb.BuildPlanProvide{
-					{Name: "datadog-trace-java"},
+					{Name: "datadog-trace"},
 				},
 				Requires: []libcnb.BuildPlanRequire{
-					{Name: "datadog-trace-java"},
-					{Name: "jvm-application"},
+					{Name: "datadog-trace"},
 				},
 			},
 		},
